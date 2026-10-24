@@ -597,6 +597,12 @@ footer .box{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(
   <p class="disclaim">Saved to your account on this device.</p>
 </div></div>
 
+<div class="modal" id="m-wip" role="dialog" aria-modal="true" aria-labelledby="wip-title"><div class="box" style="text-align:center;align-items:center">
+  <span style="font-size:44px">🚧</span><h3 id="wip-title">Login &amp; sign up are coming soon</h3>
+  <p class="muted">We're finishing secure accounts so you can save your card wallet on any device. Everything else on HomlyNest works without an account.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn acc" data-close>Got it</button><a class="btn ghost" href="#feedback" data-close>Notify me / give feedback</a></div>
+</div></div>
+
 <div class="welcome" id="welcome"><div class="box"><span class="avatar" id="wl-av" style="width:64px;height:64px;font-size:24px;border-radius:18px"></span><h2 id="wl-text"></h2><p class="muted">Build your card wallet, rate your cards and share it with friends.</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn acc" id="wl-go">Build my wallet</button><button class="btn ghost" id="wl-later">Explore first</button></div></div></div>
 
 <canvas id="confetti"></canvas>
@@ -1316,6 +1322,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?(k in m
 async function hashPw(p){try{const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('hn:'+p));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){let h=5381;for(const ch of 'hn:'+p)h=(h*33^ch.charCodeAt(0))>>>0;return 'x'+h.toString(16)}}
 /* Firebase when configured (config.js); otherwise browser-only preview mode */
 const CFG=window.HN_CONFIG||{};
+const ACCOUNTS_OPEN=CFG.accountsOpen===true;
 let fbAuth=null,fdb=null;
 try{if(CFG.firebase&&CFG.firebase.apiKey&&window.firebase){firebase.initializeApp(CFG.firebase);fbAuth=firebase.auth();fdb=firebase.firestore()}}catch(e){console.error(e)}
 const CLOUD=!!fbAuth;
@@ -1341,10 +1348,10 @@ const dismissed=new Set();
 
 function renderAuthZone(){const z=$('#authzone');
   z.innerHTML=user?`<div style="display:flex;gap:6px"><button class="userchip" data-go="wallet" title="My Wallet"><span class="avatar">${esc(initials(user.name))}</span><span class="nm">Hi, ${esc(firstName())}</span></button><button class="iconbtn" id="open-set" title="Settings" aria-label="Settings">⚙</button><button class="btn ghost sm" data-logout>Log out</button></div>`
-    :`<button class="btn sm" id="open-auth">Log in / Sign up</button>`;
+    :`<button class="btn sm" id="open-auth">Log in / Sign up${ACCOUNTS_OPEN?'':' <span class="pill" style="margin-left:4px;background:var(--accent-soft);color:var(--accent);border:0">Soon</span>'}</button>`;
   const oa=$('#open-auth');if(oa)oa.addEventListener('click',()=>openAuth('login'));const os=$('#open-set');if(os)os.addEventListener('click',openSettings)}
 function openModal(id){lastFocus=document.activeElement;$('#scrim').classList.add('on');$$('.modal').forEach(m=>m.classList.toggle('on',m.id===id));document.body.style.overflow='hidden'}
-function openAuth(mode,then){pending=then||pending;setAuthMode(mode);$('#a-err').textContent='';openModal('m-auth');setTimeout(()=>$(mode==='signup'?'#a-name':'#a-email').focus(),60)}
+function openAuth(mode,then){if(!ACCOUNTS_OPEN){openWip();return}pending=then||pending;setAuthMode(mode);$('#a-err').textContent='';openModal('m-auth');setTimeout(()=>$(mode==='signup'?'#a-name':'#a-email').focus(),60)}
 let authMode='login';
 function setAuthMode(m){authMode=m;$$('[data-auth]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.auth===m));$('#nm-wrap').hidden=m!=='signup';
   $('#auth-title').textContent=m==='signup'?'Create your HomlyNest account':'Welcome back';$('#a-submit').textContent=m==='signup'?'Sign up':'Log in';$('#a-pass').autocomplete=m==='signup'?'new-password':'current-password'}
@@ -1382,6 +1389,7 @@ function placeAsk(pg){$$('.askbox').forEach(a=>a.remove());if(dismissed.has(pg)|
   if(user&&w.length){box.innerHTML=`<div class="q"><span class="ic">👛</span><div><b>${esc(firstName())}, you have ${w.length} card${w.length>1?'s':''} in your wallet.</b><p class="muted" style="font-size:14px">Got another one? Add it to your collection.</p></div></div><div class="opts"><button class="btn acc sm" data-ask="add">Add a card</button><button class="btn ghost sm" data-go="wallet">View wallet</button></div>`}
   else if(askedCount==null){box.innerHTML=`<div class="q"><span class="ic">💳</span><div><b>How many credit cards do you have?</b><p class="muted" style="font-size:14px">${user?'Tap a number to start your wallet.':'Tell us, and build your own card wallet.'}</p></div></div><div class="opts">${['0','1','2','3','4','5+'].map(n=>`<button data-count-pick="${n}">${n}</button>`).join('')}</div>`}
   else if(askedCount==='0'){box.innerHTML=`<div class="q"><span class="ic">🌱</span><div><b>No cards yet? Let's find your first one.</b><p class="muted" style="font-size:14px">Five questions and we'll match you with a safe starter card.</p></div></div><div class="opts"><button class="btn acc sm" data-go="finder">Find my first card</button></div>`}
+  else if(!ACCOUNTS_OPEN){box.innerHTML=`<div class="q"><span class="ic">✨</span><div><b>${askedCount} card${askedCount==='1'?'':'s'}! Your card wallet is coming soon.</b><p class="muted" style="font-size:14px">Soon you can save your cards, rate them and share them. Meanwhile, compare your cards with others.</p></div></div><div class="opts"><a class="btn acc sm" href="#cards">Compare cards</a><button class="btn ghost sm" data-ask="later">OK</button></div>`}
   else{box.innerHTML=`<div class="q"><span class="ic">✨</span><div><b>${askedCount} card${askedCount==='1'?'':'s'}! Do you want to add ${askedCount==='1'?'it':'them'} to your collection in our app?</b><p class="muted" style="font-size:14px">Rate each card, track how long you've had it, and share your wallet.</p></div></div><div class="opts"><button class="btn acc sm" data-ask="add">Yes, add my cards</button><button class="btn ghost sm" data-ask="later">Not now</button></div>`}
   box.insertAdjacentHTML('beforeend','<button class="x" data-ask="hide" aria-label="Hide">✕</button>');
   page.insertAdjacentElement('afterbegin',box);
@@ -1393,7 +1401,7 @@ function placeAsk(pg){$$('.askbox').forEach(a=>a.remove());if(dismissed.has(pg)|
 /* ---------- add-card wizard ---------- */
 let wz={};
 const TAGS=['Great rewards','Easy to use','Good customer care','Low fees','Great for travel','Too many charges','Hard to redeem points','Poor support'];
-function openWizard(){if(!user){openAuth('signup','wizard');return}wz={step:1,tags:[],rating:0,years:1,months:0,note:'',q:''};openModal('m-wiz');renderWiz();sfx('swoosh')}
+function openWizard(){if(!ACCOUNTS_OPEN&&!user){openWip();return}if(!user){openAuth('signup','wizard');return}wz={step:1,tags:[],rating:0,years:1,months:0,note:'',q:''};openModal('m-wiz');renderWiz();sfx('swoosh')}
 function renderWiz(){const s=wz.step;$('#wiz-step').textContent=s<5?`Step ${s} of 4`:'Done';$$('.wiz-steps i').forEach((i,k)=>i.classList.toggle('on',k<s));
   $('#wiz-back').textContent=s===1?'← Close':'← Back';$('#wiz-back').hidden=s===5;const body=$('#wiz-body'),t=$('#wiz-title');
   if(s===1){t.textContent='Choose your bank';
@@ -1436,7 +1444,11 @@ $('#wiz-back').addEventListener('click',()=>{sfx('click');if(wz.step<=1)closeAll
 
 /* ---------- wallet page ---------- */
 const durTxt=x=>[x.years?x.years+' yr'+(x.years>1?'s':''):'',x.months?x.months+' mo':''].filter(Boolean).join(' ')||'New';
+function openWip(){openModal('m-wip');sfx('chime')}
 function renderWallet(){const p=$('#p-wallet');
+  if(!ACCOUNTS_OPEN&&!user){p.innerHTML=`<div class="page-head"><div class="t"><span class="eyebrow">My Wallet</span><h2>Your card wallet is coming soon</h2><p class="muted">Soon you'll be able to add your cards, rate them and share your collection with friends.</p></div><button class="btn ghost sm" id="wb-back">← Back</button></div>
+    <div class="empty box" style="padding:48px"><span style="font-size:40px">🚧</span><b>Accounts are being set up</b><span>Login and sign up will open shortly. Until then, everything else on HomlyNest is free to use without an account.</span><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><a class="btn acc" href="#cards">Browse cards</a><a class="btn ghost" href="#feedback">Tell us what you'd like</a></div></div>`;
+    $('#wb-back').addEventListener('click',()=>$('#gback').click());return}
   if(!user){p.innerHTML=`<div class="page-head"><div class="t"><span class="eyebrow">My Wallet</span><h2>Build your credit card wallet</h2><p class="muted">Log in to add your cards, rate them and share your collection with friends.</p></div><button class="btn ghost sm" id="wb-back">← Back</button></div>
     <div class="empty box" style="padding:48px"><span style="font-size:40px">👛</span><b>Your wallet is waiting</b><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn acc" id="w-sign">Sign up free</button><button class="btn ghost" id="w-log">Log in</button></div></div>`;
     $('#w-sign').addEventListener('click',()=>openAuth('signup','wizard'));$('#w-log').addEventListener('click',()=>openAuth('login'));$('#wb-back').addEventListener('click',()=>$('#gback').click());return}
@@ -1606,7 +1618,7 @@ const HI={
 'Share your card wallet':'अपना कार्ड वॉलेट शेयर करें','Share':'शेयर करें','Download image':'इमेज डाउनलोड करें','Copy text':'टेक्स्ट कॉपी करें',
 'Feedback':'फीडबैक','Privacy Policy':'गोपनीयता नीति','Terms of Use':'उपयोग की शर्तें','Disclaimer':'अस्वीकरण','Feedback form coming soon':'फीडबैक फॉर्म जल्द आ रहा है',
 'You are logged out':'आप लॉग आउट हो गए','Card removed':'कार्ड हटा दिया गया','Image saved':'इमेज सेव हो गई','Your wallet is waiting':'आपका वॉलेट इंतज़ार कर रहा है','Sign up free':'मुफ़्त साइन अप करें','No cards yet':'अभी कोई कार्ड नहीं','Add your first card':'अपना पहला कार्ड जोड़ें',
-'Build your credit card wallet':'अपना क्रेडिट कार्ड वॉलेट बनाइए','Log in to add your cards, rate them and share your collection with friends.':'कार्ड जोड़ने, रेटिंग देने और दोस्तों के साथ शेयर करने के लिए लॉग इन करें।'
+'Login & sign up are coming soon':'लॉग इन और साइन अप जल्द आ रहे हैं','Got it':'ठीक है','Notify me / give feedback':'मुझे बताएँ / फीडबैक दें','Your card wallet is coming soon':'आपका कार्ड वॉलेट जल्द आ रहा है','Accounts are being set up':'अकाउंट तैयार किए जा रहे हैं','Browse cards':'कार्ड देखें','Tell us what you\'d like':'बताइए आपको क्या चाहिए','Compare cards':'कार्ड की तुलना करें','OK':'ठीक है','Soon':'जल्द','Build your credit card wallet':'अपना क्रेडिट कार्ड वॉलेट बनाइए','Log in to add your cards, rate them and share your collection with friends.':'कार्ड जोड़ने, रेटिंग देने और दोस्तों के साथ शेयर करने के लिए लॉग इन करें।'
 };
 const HIRX=[[/^(\d+) cards$/,'$1 कार्ड'],[/^(\d+) banks$/,'$1 बैंक'],[/^Question (\d) of (\d)$/,'प्रश्न $1 / $2'],[/^Step (\d) of 4$/,'चरण $1 / 4'],[/^Show more cards \((\d+) left\)$/,'और कार्ड दिखाएँ ($1 बाकी)'],[/^Best for: (.*)$/,'किसके लिए: $1'],[/^Hi, (.+)$/,'नमस्ते, $1'],[/^See (.+) credit cards →$/,'$1 के क्रेडिट कार्ड देखें →'],[/^Show all (\d+)$/,'सभी $1 देखें'],[/^MATCH (\d)$/,'मैच $1'],[/^(.+) cards · summary$/,'$1 कार्ड · सारांश']];
 let lang='en';try{lang=localStorage.getItem('hn-lang')||'en'}catch(e){}
